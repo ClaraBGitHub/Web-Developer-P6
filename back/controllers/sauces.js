@@ -9,8 +9,9 @@ exports.createSauce = (req, res, next) => {
         imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}` // Nous devons également résoudre l'URL complète de notre image, car req.file.filename ne contient que le segment filename . Nous utilisons req.protocol pour obtenir le premier segment (dans notre cas 'http' ). Nous ajoutons '://' , puis utilisons req.get('host') pour résoudre l'hôte du serveur (ici, 'localhost:3000' ). Nous ajoutons finalement '/images/' et le nom de fichier pour compléter notre URL.
     });
     sauce.save() // Enregistre les infos dans la BDD
-    .then(()=> res.status(201).json({ message : 'Sauce Bben enregistrée'}))
+    .then(()=> res.status(201).json({ message : 'Sauce bien enregistrée'}))
     .catch(error => res.status(400).json({ error : error }));
+    next();
 };
 
 exports.modifySauce = (req, res, next) => {
@@ -19,14 +20,21 @@ exports.modifySauce = (req, res, next) => {
         ...JSON.parse(req.body.sauce), // JSON.parse() transforme un objet stringifié en Object JavaScript exploitable.
         imageUrl: `${req.protocol}://${req.get('host')}/images/${req.file.filename}`
     }   : {...req.body};
-    Sauce.updateOne({ _id: req.params.id }, { ...req.body, _id: req.params.id })
+    Sauce.updateOne({ _id: req.params.id }, { ...sauceObject, _id: req.params.id })
     .then(() => res.status(200).json({ message: 'Sauce updated successfully!'}))
     .catch(error => res.status(400).json({ error: error }));
+    next();
 };
 
 exports.deleteSauce = (req, res, next) => {
     Sauce.findOne({ _id: req.params.id }) // On trouve l'objet dans la BDD
     .then(sauce => {
+        if (!sauce) {
+            res.status(404).json({ error: new Error('No such Thing!') });
+        }
+        if (sauce.userId !== req.auth.userId) {
+            res.status(400).json({ error: new Error('Unauthorized request!') });
+        } 
       const filename = sauce.imageUrl.split('/images/')[1]; // Une fois trouvé, in extrait le nom du fichier à supprimer
       fs.unlink(`images/${filename}`, () => { // On le supprime avec fs.unlink
         Sauce.deleteOne({ _id: req.params.id })
@@ -35,12 +43,14 @@ exports.deleteSauce = (req, res, next) => {
             });
         })
     .catch(error => res.status(400).json({ error }));
+    next();
 };
 
 exports.getOneSauce = (req, res, next ) => {
     Sauce.findOne({ _id: req.params.id }) // La méthode findOne() dans notre modèle sauce pour trouver la sauce unique ayant le même _id que le paramètre de la requête
     .then(sauce => res.status(200).json(sauce))
     .catch(error => res.status(404).json({ error }));
+    next();
 };
 
 exports.getAllSauce = (req, res, next) => {
@@ -49,6 +59,8 @@ exports.getAllSauce = (req, res, next) => {
     .catch(error =>res.status(404).json({ error : error }))
     next();
 };
+
+
 
 // exports.getLikes = (req, res, next) => {
 //     sauce.find()
