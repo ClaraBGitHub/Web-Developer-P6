@@ -1,12 +1,16 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const ncrypt = require('ncrypt-js');
+const secretKey = "test";
+const ncryptObject = new ncrypt(secretKey); // Librairie  légère de chiffrement et de déchiffrement de données javascript.
 
 exports.signup = (req, res, next) => {
     bcrypt.hash(req.body.password, 10) // Permet d'hasher(crypter) le mdp. On passe le corps du mdp qui sera passé par le front. Le "salt" correspond au nombre de fois où l'algo de hashage est exécuté.
     .then(hash => {
+        const emailCrypt = ncryptObject.encrypt(req.body.email); // Chiffrement de la donnée
         const user = new User({ // Enregistrement du nouvel utilisateur dans la bdd
-            email : req.body.email, // Adresse indiqué dans le corps de la requête
+            email : emailCrypt, // Adresse indiqué dans le corps de la requête
             password : hash // On enregistre le hash du mdp et non le mdp en blanc
         });
         user.save() // Enregistrement dans la BDD
@@ -17,7 +21,8 @@ exports.signup = (req, res, next) => {
 };
 
 exports.login = (req, res, next) => {
-    User.findOne({ email : req.body.email }) // On récupère l'utilisateur de la base qui correspond à l'adresse courriel entrée
+    const emailCrypt = ncryptObject.encrypt(req.body.email);
+    User.findOne({ email : emailCrypt }) // On récupère l'utilisateur de la base qui correspond à l'adresse courriel entrée
     .then(user => {
         if(!user) { // Si on ne reçoit pas de user, on renvoit une erreur
             return res.status(404).json(({ error: 'Utilisateur non trouvé !'}));
